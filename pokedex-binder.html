@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Binder">
+<meta name="theme-color" content="#1b2b21">
+<title>Pokédex Binder — Gen I &amp; II</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+  :root{
+    --binder-1: #1b2b21;
+    --binder-2: #12201a;
+    --page: #f6f0e2;
+    --page-edge: #e7dcc2;
+    --ink: #23301f;
+    --ink-soft: #6b6656;
+    --gold: #c9a24b;
+    --gold-soft: #e3c785;
+    --slot-empty-bg: #ece4d0;
+    --slot-empty-line: #cabf9d;
+    --danger: #b5493f;
+
+    --t-normal:#9a9a71; --t-fire:#e2762f; --t-water:#5e87e0; --t-electric:#e8bf2a;
+    --t-grass:#6cb04a; --t-ice:#82c9c6; --t-fighting:#b7392f; --t-poison:#95379a;
+    --t-ground:#cc9f4f; --t-flying:#93a6e6; --t-psychic:#e8548a; --t-bug:#98a422;
+    --t-rock:#a6923a; --t-ghost:#5f4f79; --t-dragon:#6650e6; --t-dark:#5f4c3d;
+    --t-steel:#9a9ab0; --t-fairy:#d17aa8;
+  }
+
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(120% 90% at 50% -10%, #24382c 0%, var(--binder-1) 45%, var(--binder-2) 100%);
+    min-height:100vh;
+    overscroll-behavior:none;
+  }
+  #app{
+    max-width:480px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    padding: calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 84px);
+    position:relative;
+  }
+
+  /* ---------- Header ---------- */
+  .titlebar{display:flex; align-items:flex-start; justify-content:space-between; gap:12px;}
+  .titlebar h1{
+    font-family:'Fredoka',sans-serif;
+    font-weight:600;
+    font-size:26px;
+    line-height:1.05;
+    color:#f4efe0;
+    margin:0;
+  }
+  .titlebar p{margin:4px 0 0; font-size:13px; color:#b9c2b3;}
+  .ring-wrap{position:relative; width:54px; height:54px; flex-shrink:0;}
+  .ring-wrap svg{transform:rotate(-90deg);}
+  .ring-bg{fill:none; stroke:rgba(255,255,255,0.12); stroke-width:5;}
+  .ring-fg{fill:none; stroke:var(--gold); stroke-width:5; stroke-linecap:round; transition:stroke-dashoffset .5s ease;}
+  .ring-label{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:11px; color:#f4efe0;}
+
+  .progress-line{display:flex; align-items:center; gap:8px; margin-top:14px;}
+  .bar{flex:1; height:6px; border-radius:6px; background:rgba(255,255,255,0.1); overflow:hidden;}
+  .bar>span{display:block; height:100%; background:linear-gradient(90deg, var(--gold-soft), var(--gold)); border-radius:6px; transition:width .5s ease;}
+  .progress-line small{font-family:'Space Mono',monospace; font-size:11px; color:#cdd4c6; white-space:nowrap;}
+
+  /* ---------- Tabs ---------- */
+  .tabs{
+    display:flex; gap:6px; margin-top:16px;
+    background:rgba(255,255,255,0.06);
+    padding:4px; border-radius:12px;
+  }
+  .tabs button{
+    flex:1; border:0; padding:9px 6px; border-radius:9px;
+    background:transparent; color:#cfd6c8;
+    font-family:'Inter',sans-serif; font-weight:600; font-size:12.5px;
+    cursor:pointer; transition:background .2s ease, color .2s ease;
+  }
+  .tabs button.active{background:var(--page); color:var(--ink); box-shadow:0 2px 6px rgba(0,0,0,0.25);}
+  .tabs button span{display:block; font-family:'Space Mono',monospace; font-size:10px; margin-top:2px; opacity:.7;}
+
+  /* ---------- Toolbar ---------- */
+  .toolbar{display:flex; gap:8px; margin-top:12px;}
+  .search{
+    flex:1; display:flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,0.08); border-radius:11px; padding:9px 12px;
+  }
+  .search input{
+    border:0; background:transparent; outline:0; width:100%;
+    color:#f4efe0; font-family:'Inter',sans-serif; font-size:14px;
+  }
+  .search input::placeholder{color:#8d9587;}
+  .search svg{flex-shrink:0; opacity:.7;}
+  .filter-btn{
+    width:38px; flex-shrink:0; border:0; border-radius:11px;
+    background:rgba(255,255,255,0.08); color:#cfd6c8; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .2s ease, color .2s ease;
+  }
+  .filter-btn.active{background:var(--gold); color:#2a2110;}
+
+  /* ---------- Page (binder sheet) ---------- */
+  .sheet{
+    margin-top:16px;
+    background:var(--page);
+    border-radius:18px;
+    padding:14px 12px 10px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.4) inset,
+      0 18px 30px -14px rgba(0,0,0,0.55),
+      0 0 0 1px rgba(0,0,0,0.06);
+    position:relative;
+  }
+  .sheet::before{ /* ring binder holes */
+    content:"";
+    position:absolute; left:-6px; top:18px; bottom:18px; width:12px;
+    background-image: radial-gradient(circle, var(--binder-2) 3.5px, transparent 3.6px);
+    background-size:12px 34px;
+    background-repeat:repeat-y;
+    opacity:.9;
+  }
+  .sheet-head{display:flex; align-items:baseline; justify-content:space-between; padding:0 4px 10px; border-bottom:1px dashed var(--page-edge);}
+  .sheet-head h2{margin:0; font-family:'Fredoka',sans-serif; font-size:14px; font-weight:600; color:var(--ink);}
+  .sheet-head span{font-family:'Space Mono',monospace; font-size:11px; color:var(--ink-soft);}
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:9px;
+    padding-top:10px;
+    animation:pageIn .28s ease;
+  }
+  @keyframes pageIn{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+  @media (prefers-reduced-motion: reduce){
+    .grid{animation:none;}
+  }
+
+  .slot{
+    position:relative;
+    aspect-ratio:5/7;
+    border:0; padding:0; cursor:pointer;
+    border-radius:12px;
+    background:#fff;
+    font-family:inherit;
+    text-align:left;
+    overflow:hidden;
+    transition:transform .12s ease;
+  }
+  .slot:active{transform:scale(0.95);}
+  .slot.pop{animation:pop .32s ease;}
+  @keyframes pop{ 0%{transform:scale(1);} 40%{transform:scale(1.08);} 100%{transform:scale(1);} }
+
+  .slot.blank{visibility:hidden; pointer-events:none;}
+
+  .slot.is-empty{
+    background:var(--slot-empty-bg);
+    border:1.5px dashed var(--slot-empty-line);
+  }
+  .slot.is-empty .art{filter:grayscale(1) brightness(1.25); opacity:.35;}
+  .slot.is-empty .name, .slot.is-empty .types{display:none;}
+  .slot.is-empty .plus{
+    position:absolute; right:6px; bottom:6px;
+    width:20px; height:20px; border-radius:50%;
+    background:rgba(35,48,31,0.75); color:#f6f0e2;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; line-height:1;
+  }
+
+  .slot.is-caught{
+    background:linear-gradient(160deg, #ffffff 0%, #fbf6ea 60%, #f3e6c4 100%);
+    box-shadow:0 4px 10px -4px rgba(0,0,0,0.35), 0 0 0 1.5px var(--gold-soft) inset;
+  }
+  .slot.is-caught::after{
+    content:"";
+    position:absolute; inset:0;
+    background:linear-gradient(120deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 30%);
+    pointer-events:none;
+  }
+
+  .dex-no{
+    position:absolute; top:5px; left:6px;
+    font-family:'Space Mono',monospace; font-size:9px; letter-spacing:.02em;
+    color:var(--ink-soft); z-index:2;
+  }
+  .art{
+    width:100%; height:62%;
+    display:flex; align-items:center; justify-content:center;
+    padding-top:6px;
+  }
+  .art img{width:82%; height:82%; object-fit:contain; image-rendering:-webkit-optimize-contrast;}
+  .name{
+    font-family:'Inter',sans-serif; font-weight:700; font-size:10.5px;
+    color:var(--ink); text-align:center; padding:0 4px; line-height:1.15;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .types{display:flex; justify-content:center; gap:3px; padding:4px 3px 6px; flex-wrap:wrap;}
+  .type-pill{
+    font-size:7.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em;
+    color:#fff; padding:2px 5px; border-radius:20px; line-height:1.3;
+  }
+  .caught-badge{
+    position:absolute; top:4px; right:4px; width:17px; height:17px; border-radius:50%;
+    background:var(--gold); color:#2a2110; font-size:11px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; z-index:2;
+    box-shadow:0 1px 2px rgba(0,0,0,0.3);
+  }
+
+  /* ---------- Empty search state ---------- */
+  .empty-state{
+    grid-column:1/-1; padding:36px 10px; text-align:center; color:var(--ink-soft);
+  }
+  .empty-state strong{display:block; color:var(--ink); font-family:'Fredoka',sans-serif; font-size:15px; margin-bottom:4px;}
+
+  /* ---------- Bottom nav ---------- */
+  .navbar{
+    position:fixed; left:0; right:0; bottom:0;
+    display:flex; justify-content:center;
+    padding-bottom:env(safe-area-inset-bottom);
+    pointer-events:none;
+  }
+  .navbar-inner{
+    pointer-events:auto;
+    width:100%; max-width:480px;
+    margin:0 16px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:rgba(22,32,26,0.78);
+    backdrop-filter:blur(18px) saturate(160%);
+    -webkit-backdrop-filter:blur(18px) saturate(160%);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:16px;
+    padding:9px 10px;
+    box-shadow:0 10px 30px -10px rgba(0,0,0,0.6);
+    margin-bottom:10px;
+  }
+  .nav-btn{
+    width:40px; height:40px; border-radius:12px; border:0;
+    background:rgba(255,255,255,0.08); color:#f4efe0;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .nav-btn:disabled{opacity:.3;}
+  .nav-mid{text-align:center; font-family:'Space Mono',monospace; font-size:12px; color:#e9e4d3;}
+  .nav-mid b{color:#fff; font-size:13px;}
+  .reset-btn{
+    width:40px; height:40px; border-radius:12px; border:0;
+    background:rgba(181,73,63,0.18); color:#e79892; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  /* ---------- Confirm sheet ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(10,14,10,0.55);
+    display:flex; align-items:flex-end; justify-content:center;
+    z-index:50; padding:16px;
+  }
+  .overlay.hidden{display:none;}
+  .confirm{
+    width:100%; max-width:420px; background:var(--page);
+    border-radius:18px; padding:20px 18px calc(18px + env(safe-area-inset-bottom));
+  }
+  .confirm h3{margin:0 0 6px; font-family:'Fredoka',sans-serif; font-size:17px;}
+  .confirm p{margin:0 0 16px; font-size:13.5px; color:var(--ink-soft); line-height:1.4;}
+  .confirm-row{display:flex; gap:10px;}
+  .confirm-row button{
+    flex:1; padding:12px; border-radius:12px; border:0; font-weight:700; font-size:14px; cursor:pointer;
+  }
+  .btn-cancel{background:rgba(35,48,31,0.08); color:var(--ink);}
+  .btn-danger{background:var(--danger); color:#fff;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="titlebar">
+    <div>
+      <h1>Pokédex Binder</h1>
+      <p id="subtitle">Loading your collection…</p>
+    </div>
+    <div class="ring-wrap">
+      <svg width="54" height="54" viewBox="0 0 54 54">
+        <circle class="ring-bg" cx="27" cy="27" r="22"></circle>
+        <circle id="ring-fg" class="ring-fg" cx="27" cy="27" r="22" stroke-dasharray="138.2" stroke-dashoffset="138.2"></circle>
+      </svg>
+      <div class="ring-label" id="ring-label">0%</div>
+    </div>
+  </div>
+
+  <div class="progress-line">
+    <div class="bar"><span id="bar-fill" style="width:0%"></span></div>
+    <small id="bar-label">0 / 251</small>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button data-gen="1">Gen I<span id="count-gen1">0/151</span></button>
+    <button data-gen="2">Gen II<span id="count-gen2">0/100</span></button>
+    <button data-gen="all">All<span id="count-all">0/251</span></button>
+  </div>
+
+  <div class="toolbar">
+    <div class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#cfd6c8" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="search" type="text" placeholder="Search name or number" autocomplete="off">
+    </div>
+    <button class="filter-btn" id="missing-toggle" title="Show missing only">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+    </button>
+  </div>
+
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="sheet-title">Gen I</h2>
+      <span id="sheet-range">#001–#009</span>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<div class="navbar">
+  <div class="navbar-inner">
+    <button class="nav-btn" id="prev-btn" aria-label="Previous page">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="nav-mid"><b id="page-num">1</b> / <span id="page-total">17</span></div>
+    <button class="nav-btn" id="next-btn" aria-label="Next page">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <button class="reset-btn" id="reset-btn" aria-label="Reset collection">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="overlay">
+  <div class="confirm">
+    <h3>Empty the binder?</h3>
+    <p>This clears every card you've ticked off. Your Pokédex numbers stay — you'll just be starting the collection over.</p>
+    <div class="confirm-row">
+      <button class="btn-cancel" id="cancel-reset">Cancel</button>
+      <button class="btn-danger" id="confirm-reset">Empty it</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const POKEMON = [
+    {id:1,n:"Bulbasaur",t:["grass","poison"]},{id:2,n:"Ivysaur",t:["grass","poison"]},{id:3,n:"Venusaur",t:["grass","poison"]},
+    {id:4,n:"Charmander",t:["fire"]},{id:5,n:"Charmeleon",t:["fire"]},{id:6,n:"Charizard",t:["fire","flying"]},
+    {id:7,n:"Squirtle",t:["water"]},{id:8,n:"Wartortle",t:["water"]},{id:9,n:"Blastoise",t:["water"]},
+    {id:10,n:"Caterpie",t:["bug"]},{id:11,n:"Metapod",t:["bug"]},{id:12,n:"Butterfree",t:["bug","flying"]},
+    {id:13,n:"Weedle",t:["bug","poison"]},{id:14,n:"Kakuna",t:["bug","poison"]},{id:15,n:"Beedrill",t:["bug","poison"]},
+    {id:16,n:"Pidgey",t:["normal","flying"]},{id:17,n:"Pidgeotto",t:["normal","flying"]},{id:18,n:"Pidgeot",t:["normal","flying"]},
+    {id:19,n:"Rattata",t:["normal"]},{id:20,n:"Raticate",t:["normal"]},
+    {id:21,n:"Spearow",t:["normal","flying"]},{id:22,n:"Fearow",t:["normal","flying"]},
+    {id:23,n:"Ekans",t:["poison"]},{id:24,n:"Arbok",t:["poison"]},
+    {id:25,n:"Pikachu",t:["electric"]},{id:26,n:"Raichu",t:["electric"]},
+    {id:27,n:"Sandshrew",t:["ground"]},{id:28,n:"Sandslash",t:["ground"]},
+    {id:29,n:"Nidoran♀",t:["poison"]},{id:30,n:"Nidorina",t:["poison"]},{id:31,n:"Nidoqueen",t:["poison","ground"]},
+    {id:32,n:"Nidoran♂",t:["poison"]},{id:33,n:"Nidorino",t:["poison"]},{id:34,n:"Nidoking",t:["poison","ground"]},
+    {id:35,n:"Clefairy",t:["fairy"]},{id:36,n:"Clefable",t:["fairy"]},
+    {id:37,n:"Vulpix",t:["fire"]},{id:38,n:"Ninetales",t:["fire"]},
+    {id:39,n:"Jigglypuff",t:["normal","fairy"]},{id:40,n:"Wigglytuff",t:["normal","fairy"]},
+    {id:41,n:"Zubat",t:["poison","flying"]},{id:42,n:"Golbat",t:["poison","flying"]},
+    {id:43,n:"Oddish",t:["grass","poison"]},{id:44,n:"Gloom",t:["grass","poison"]},{id:45,n:"Vileplume",t:["grass","poison"]},
+    {id:46,n:"Paras",t:["bug","grass"]},{id:47,n:"Parasect",t:["bug","grass"]},
+    {id:48,n:"Venonat",t:["bug","poison"]},{id:49,n:"Venomoth",t:["bug","poison"]},
+    {id:50,n:"Diglett",t:["ground"]},{id:51,n:"Dugtrio",t:["ground"]},
+    {id:52,n:"Meowth",t:["normal"]},{id:53,n:"Persian",t:["normal"]},
+    {id:54,n:"Psyduck",t:["water"]},{id:55,n:"Golduck",t:["water"]},
+    {id:56,n:"Mankey",t:["fighting"]},{id:57,n:"Primeape",t:["fighting"]},
+    {id:58,n:"Growlithe",t:["fire"]},{id:59,n:"Arcanine",t:["fire"]},
+    {id:60,n:"Poliwag",t:["water"]},{id:61,n:"Poliwhirl",t:["water"]},{id:62,n:"Poliwrath",t:["water","fighting"]},
+    {id:63,n:"Abra",t:["psychic"]},{id:64,n:"Kadabra",t:["psychic"]},{id:65,n:"Alakazam",t:["psychic"]},
+    {id:66,n:"Machop",t:["fighting"]},{id:67,n:"Machoke",t:["fighting"]},{id:68,n:"Machamp",t:["fighting"]},
+    {id:69,n:"Bellsprout",t:["grass","poison"]},{id:70,n:"Weepinbell",t:["grass","poison"]},{id:71,n:"Victreebel",t:["grass","poison"]},
+    {id:72,n:"Tentacool",t:["water","poison"]},{id:73,n:"Tentacruel",t:["water","poison"]},
+    {id:74,n:"Geodude",t:["rock","ground"]},{id:75,n:"Graveler",t:["rock","ground"]},{id:76,n:"Golem",t:["rock","ground"]},
+    {id:77,n:"Ponyta",t:["fire"]},{id:78,n:"Rapidash",t:["fire"]},
+    {id:79,n:"Slowpoke",t:["water","psychic"]},{id:80,n:"Slowbro",t:["water","psychic"]},
+    {id:81,n:"Magnemite",t:["electric","steel"]},{id:82,n:"Magneton",t:["electric","steel"]},
+    {id:83,n:"Farfetch'd",t:["normal","flying"]},
+    {id:84,n:"Doduo",t:["normal","flying"]},{id:85,n:"Dodrio",t:["normal","flying"]},
+    {id:86,n:"Seel",t:["water"]},{id:87,n:"Dewgong",t:["water","ice"]},
+    {id:88,n:"Grimer",t:["poison"]},{id:89,n:"Muk",t:["poison"]},
+    {id:90,n:"Shellder",t:["water"]},{id:91,n:"Cloyster",t:["water","ice"]},
+    {id:92,n:"Gastly",t:["ghost","poison"]},{id:93,n:"Haunter",t:["ghost","poison"]},{id:94,n:"Gengar",t:["ghost","poison"]},
+    {id:95,n:"Onix",t:["rock","ground"]},
+    {id:96,n:"Drowzee",t:["psychic"]},{id:97,n:"Hypno",t:["psychic"]},
+    {id:98,n:"Krabby",t:["water"]},{id:99,n:"Kingler",t:["water"]},
+    {id:100,n:"Voltorb",t:["electric"]},{id:101,n:"Electrode",t:["electric"]},
+    {id:102,n:"Exeggcute",t:["grass","psychic"]},{id:103,n:"Exeggutor",t:["grass","psychic"]},
+    {id:104,n:"Cubone",t:["ground"]},{id:105,n:"Marowak",t:["ground"]},
+    {id:106,n:"Hitmonlee",t:["fighting"]},{id:107,n:"Hitmonchan",t:["fighting"]},
+    {id:108,n:"Lickitung",t:["normal"]},
+    {id:109,n:"Koffing",t:["poison"]},{id:110,n:"Weezing",t:["poison"]},
+    {id:111,n:"Rhyhorn",t:["ground","rock"]},{id:112,n:"Rhydon",t:["ground","rock"]},
+    {id:113,n:"Chansey",t:["normal"]},
+    {id:114,n:"Tangela",t:["grass"]},
+    {id:115,n:"Kangaskhan",t:["normal"]},
+    {id:116,n:"Horsea",t:["water"]},{id:117,n:"Seadra",t:["water"]},
+    {id:118,n:"Goldeen",t:["water"]},{id:119,n:"Seaking",t:["water"]},
+    {id:120,n:"Staryu",t:["water"]},{id:121,n:"Starmie",t:["water","psychic"]},
+    {id:122,n:"Mr. Mime",t:["psychic","fairy"]},
+    {id:123,n:"Scyther",t:["bug","flying"]},
+    {id:124,n:"Jynx",t:["ice","psychic"]},
+    {id:125,n:"Electabuzz",t:["electric"]},{id:126,n:"Magmar",t:["fire"]},
+    {id:127,n:"Pinsir",t:["bug"]},
+    {id:128,n:"Tauros",t:["normal"]},
+    {id:129,n:"Magikarp",t:["water"]},{id:130,n:"Gyarados",t:["water","flying"]},
+    {id:131,n:"Lapras",t:["water","ice"]},
+    {id:132,n:"Ditto",t:["normal"]},
+    {id:133,n:"Eevee",t:["normal"]},{id:134,n:"Vaporeon",t:["water"]},{id:135,n:"Jolteon",t:["electric"]},{id:136,n:"Flareon",t:["fire"]},
+    {id:137,n:"Porygon",t:["normal"]},
+    {id:138,n:"Omanyte",t:["rock","water"]},{id:139,n:"Omastar",t:["rock","water"]},
+    {id:140,n:"Kabuto",t:["rock","water"]},{id:141,n:"Kabutops",t:["rock","water"]},
+    {id:142,n:"Aerodactyl",t:["rock","flying"]},
+    {id:143,n:"Snorlax",t:["normal"]},
+    {id:144,n:"Articuno",t:["ice","flying"]},{id:145,n:"Zapdos",t:["electric","flying"]},{id:146,n:"Moltres",t:["fire","flying"]},
+    {id:147,n:"Dratini",t:["dragon"]},{id:148,n:"Dragonair",t:["dragon"]},{id:149,n:"Dragonite",t:["dragon","flying"]},
+    {id:150,n:"Mewtwo",t:["psychic"]},{id:151,n:"Mew",t:["psychic"]},
+
+    {id:152,n:"Chikorita",t:["grass"]},{id:153,n:"Bayleef",t:["grass"]},{id:154,n:"Meganium",t:["grass"]},
+    {id:155,n:"Cyndaquil",t:["fire"]},{id:156,n:"Quilava",t:["fire"]},{id:157,n:"Typhlosion",t:["fire"]},
+    {id:158,n:"Totodile",t:["water"]},{id:159,n:"Croconaw",t:["water"]},{id:160,n:"Feraligatr",t:["water"]},
+    {id:161,n:"Sentret",t:["normal"]},{id:162,n:"Furret",t:["normal"]},
+    {id:163,n:"Hoothoot",t:["normal","flying"]},{id:164,n:"Noctowl",t:["normal","flying"]},
+    {id:165,n:"Ledyba",t:["bug","flying"]},{id:166,n:"Ledian",t:["bug","flying"]},
+    {id:167,n:"Spinarak",t:["bug","poison"]},{id:168,n:"Ariados",t:["bug","poison"]},
+    {id:169,n:"Crobat",t:["poison","flying"]},
+    {id:170,n:"Chinchou",t:["water","electric"]},{id:171,n:"Lanturn",t:["water","electric"]},
+    {id:172,n:"Pichu",t:["electric"]},
+    {id:173,n:"Cleffa",t:["fairy"]},
+    {id:174,n:"Igglybuff",t:["normal","fairy"]},
+    {id:175,n:"Togepi",t:["fairy"]},{id:176,n:"Togetic",t:["fairy","flying"]},
+    {id:177,n:"Natu",t:["psychic","flying"]},{id:178,n:"Xatu",t:["psychic","flying"]},
+    {id:179,n:"Mareep",t:["electric"]},{id:180,n:"Flaaffy",t:["electric"]},{id:181,n:"Ampharos",t:["electric"]},
+    {id:182,n:"Bellossom",t:["grass"]},
+    {id:183,n:"Marill",t:["water","fairy"]},{id:184,n:"Azumarill",t:["water","fairy"]},
+    {id:185,n:"Sudowoodo",t:["rock"]},
+    {id:186,n:"Politoed",t:["water"]},
+    {id:187,n:"Hoppip",t:["grass","flying"]},{id:188,n:"Skiploom",t:["grass","flying"]},{id:189,n:"Jumpluff",t:["grass","flying"]},
+    {id:190,n:"Aipom",t:["normal"]},
+    {id:191,n:"Sunkern",t:["grass"]},{id:192,n:"Sunflora",t:["grass"]},
+    {id:193,n:"Yanma",t:["bug","flying"]},
+    {id:194,n:"Wooper",t:["water","ground"]},{id:195,n:"Quagsire",t:["water","ground"]},
+    {id:196,n:"Espeon",t:["psychic"]},{id:197,n:"Umbreon",t:["dark"]},
+    {id:198,n:"Murkrow",t:["dark","flying"]},
+    {id:199,n:"Slowking",t:["water","psychic"]},
+    {id:200,n:"Misdreavus",t:["ghost"]},
+    {id:201,n:"Unown",t:["psychic"]},
+    {id:202,n:"Wobbuffet",t:["psychic"]},
+    {id:203,n:"Girafarig",t:["normal","psychic"]},
+    {id:204,n:"Pineco",t:["bug"]},{id:205,n:"Forretress",t:["bug","steel"]},
+    {id:206,n:"Dunsparce",t:["normal"]},
+    {id:207,n:"Gligar",t:["ground","flying"]},
+    {id:208,n:"Steelix",t:["steel","ground"]},
+    {id:209,n:"Snubbull",t:["fairy"]},{id:210,n:"Granbull",t:["fairy"]},
+    {id:211,n:"Qwilfish",t:["water","poison"]},
+    {id:212,n:"Scizor",t:["bug","steel"]},
+    {id:213,n:"Shuckle",t:["bug","rock"]},
+    {id:214,n:"Heracross",t:["bug","fighting"]},
+    {id:215,n:"Sneasel",t:["dark","ice"]},
+    {id:216,n:"Teddiursa",t:["normal"]},{id:217,n:"Ursaring",t:["normal"]},
+    {id:218,n:"Slugma",t:["fire"]},{id:219,n:"Magcargo",t:["fire","rock"]},
+    {id:220,n:"Swinub",t:["ice","ground"]},{id:221,n:"Piloswine",t:["ice","ground"]},
+    {id:222,n:"Corsola",t:["water","rock"]},
+    {id:223,n:"Remoraid",t:["water"]},{id:224,n:"Octillery",t:["water"]},
+    {id:225,n:"Delibird",t:["ice","flying"]},
+    {id:226,n:"Mantine",t:["water","flying"]},
+    {id:227,n:"Skarmory",t:["steel","flying"]},
+    {id:228,n:"Houndour",t:["dark","fire"]},{id:229,n:"Houndoom",t:["dark","fire"]},
+    {id:230,n:"Kingdra",t:["water","dragon"]},
+    {id:231,n:"Phanpy",t:["ground"]},{id:232,n:"Donphan",t:["ground"]},
+    {id:233,n:"Porygon2",t:["normal"]},
+    {id:234,n:"Stantler",t:["normal"]},
+    {id:235,n:"Smeargle",t:["normal"]},
+    {id:236,n:"Tyrogue",t:["fighting"]},
+    {id:237,n:"Hitmontop",t:["fighting"]},
+    {id:238,n:"Smoochum",t:["ice","psychic"]},{id:239,n:"Elekid",t:["electric"]},{id:240,n:"Magby",t:["fire"]},
+    {id:241,n:"Miltank",t:["normal"]},
+    {id:242,n:"Blissey",t:["normal"]},
+    {id:243,n:"Raikou",t:["electric"]},{id:244,n:"Entei",t:["fire"]},{id:245,n:"Suicune",t:["water"]},
+    {id:246,n:"Larvitar",t:["rock","ground"]},{id:247,n:"Pupitar",t:["rock","ground"]},{id:248,n:"Tyranitar",t:["rock","dark"]},
+    {id:249,n:"Lugia",t:["psychic","flying"]},{id:250,n:"Ho-Oh",t:["fire","flying"]},
+    {id:251,n:"Celebi",t:["psychic","grass"]}
+  ];
+
+  const PAGE_SIZE = 9;
+  const CIRC = 2 * Math.PI * 22;
+
+  let collected = new Set();
+  let gen = "1";
+  let query = "";
+  let missingOnly = false;
+  let page = 0;
+  let storageReady = false;
+
+  const el = (id) => document.getElementById(id);
+  const grid = el("grid");
+
+  function spriteUrl(id){
+    return "sprites/" + String(id).padStart(3,"0") + ".png";
+  }
+  function fallbackUrl(id){
+    return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/" + id + ".png";
+  }
+  function pad(id){ return "#" + String(id).padStart(3,"0"); }
+
+  function genRange(g){
+    if(g==="1") return [1,151];
+    if(g==="2") return [152,251];
+    return [1,251];
+  }
+
+  function filteredList(){
+    const [lo,hi] = genRange(gen);
+    const q = query.trim().toLowerCase();
+    return POKEMON.filter(p=>{
+      if(p.id<lo || p.id>hi) return false;
+      if(missingOnly && collected.has(p.id)) return false;
+      if(q){
+        const numMatch = String(p.id).padStart(3,"0").includes(q) || String(p.id)===q;
+        const nameMatch = p.n.toLowerCase().includes(q);
+        if(!numMatch && !nameMatch) return false;
+      }
+      return true;
+    });
+  }
+
+  function countIn(lo,hi){
+    let c=0;
+    for(const id of collected) if(id>=lo && id<=hi) c++;
+    return c;
+  }
+
+  function updateHeader(){
+    const total = collected.size;
+    const pct = Math.round((total/251)*100);
+    el("subtitle").textContent = total===0
+      ? "Start ticking off cards as you pull them"
+      : total===251
+        ? "Complete! Every card is in the binder."
+        : total + " of 251 collected · " + (251-total) + " left";
+    el("bar-fill").style.width = pct + "%";
+    el("bar-label").textContent = total + " / 251";
+    el("ring-label").textContent = pct + "%";
+    const offset = CIRC - (pct/100)*CIRC;
+    el("ring-fg").style.strokeDasharray = CIRC.toFixed(1);
+    el("ring-fg").style.strokeDashoffset = offset.toFixed(1);
+
+    el("count-gen1").textContent = countIn(1,151) + "/151";
+    el("count-gen2").textContent = countIn(152,251) + "/100";
+    el("count-all").textContent = total + "/251";
+  }
+
+  function updateTabs(){
+    document.querySelectorAll("#tabs button").forEach(b=>{
+      b.classList.toggle("active", b.dataset.gen===gen);
+    });
+    el("sheet-title").textContent = gen==="1" ? "Gen I · Kanto" : gen==="2" ? "Gen II · Johto" : "Gen I & II";
+  }
+
+  function render(){
+    const list = filteredList();
+    const totalPages = Math.max(1, Math.ceil(list.length/PAGE_SIZE));
+    if(page >= totalPages) page = totalPages-1;
+    if(page < 0) page = 0;
+
+    const start = page*PAGE_SIZE;
+    const pageItems = list.slice(start, start+PAGE_SIZE);
+
+    grid.innerHTML = "";
+
+    if(list.length===0){
+      const div = document.createElement("div");
+      div.className = "empty-state";
+      div.innerHTML = "<strong>No cards match</strong>Try a different name, number, or filter.";
+      grid.appendChild(div);
+    } else {
+      for(let i=0;i<PAGE_SIZE;i++){
+        const p = pageItems[i];
+        if(!p){
+          const blank = document.createElement("div");
+          blank.className = "slot blank";
+          grid.appendChild(blank);
+          continue;
+        }
+        const isCaught = collected.has(p.id);
+        const btn = document.createElement("button");
+        btn.className = "slot " + (isCaught ? "is-caught" : "is-empty");
+        btn.dataset.id = p.id;
+        btn.setAttribute("aria-pressed", isCaught ? "true":"false");
+        btn.setAttribute("aria-label", p.n + (isCaught? " collected, tap to remove" : " missing, tap to mark collected"));
+
+        const typePills = p.t.map(t=>'<span class="type-pill" style="background:var(--t-'+t+')">'+t+'</span>').join("");
+
+        btn.innerHTML =
+          '<span class="dex-no">'+pad(p.id)+'</span>' +
+          (isCaught ? '<span class="caught-badge">✓</span>' : '<span class="plus">+</span>') +
+          '<div class="art"><img src="'+spriteUrl(p.id)+'" alt="" loading="lazy" onerror="this.onerror=null;this.src=\''+fallbackUrl(p.id)+'\'"></div>' +
+          '<div class="name">'+p.n+'</div>' +
+          '<div class="types">'+typePills+'</div>';
+
+        btn.addEventListener("click", ()=> toggle(p.id, btn));
+        grid.appendChild(btn);
+      }
+    }
+
+    el("page-num").textContent = list.length===0 ? 0 : page+1;
+    el("page-total").textContent = totalPages;
+    el("prev-btn").disabled = page<=0;
+    el("next-btn").disabled = page>=totalPages-1 || list.length===0;
+
+    const [lo] = genRange(gen);
+    const rangeStart = lo + page*PAGE_SIZE;
+    const rangeEnd = Math.min(rangeStart+PAGE_SIZE-1, lo + (gen==="all"?250:(gen==="1"?150:99)));
+    el("sheet-range").textContent = list.length ? (pad(pageItems[0].id) + "–" + pad(pageItems[pageItems.length-1].id)) : "—";
+
+    updateHeader();
+  }
+
+  async function toggle(id, btnEl){
+    if(collected.has(id)) collected.delete(id); else collected.add(id);
+    btnEl.classList.remove("pop");
+    void btnEl.offsetWidth;
+    btnEl.classList.add("pop");
+    render();
+    await save();
+  }
+
+  const STORAGE_KEY = "pokedex-binder-collected";
+
+  async function save(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(collected)));
+    }catch(e){ console.error("Storage save failed", e); }
+  }
+
+  async function load(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        collected = new Set(JSON.parse(raw));
+      }
+    }catch(e){
+      // no data yet, start fresh
+    }
+    storageReady = true;
+    render();
+  }
+
+  // ---- events ----
+  document.querySelectorAll("#tabs button").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      gen = b.dataset.gen; page = 0; updateTabs(); render();
+    });
+  });
+
+  let searchTimer;
+  el("search").addEventListener("input", (e)=>{
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(()=>{
+      query = e.target.value; page = 0; render();
+    }, 120);
+  });
+
+  el("missing-toggle").addEventListener("click", ()=>{
+    missingOnly = !missingOnly;
+    el("missing-toggle").classList.toggle("active", missingOnly);
+    page = 0; render();
+  });
+
+  el("prev-btn").addEventListener("click", ()=>{ page--; render(); });
+  el("next-btn").addEventListener("click", ()=>{ page++; render(); });
+
+  el("reset-btn").addEventListener("click", ()=> el("overlay").classList.remove("hidden"));
+  el("cancel-reset").addEventListener("click", ()=> el("overlay").classList.add("hidden"));
+  el("confirm-reset").addEventListener("click", async ()=>{
+    collected = new Set();
+    el("overlay").classList.add("hidden");
+    render();
+    await save();
+  });
+  el("overlay").addEventListener("click", (e)=>{ if(e.target.id==="overlay") el("overlay").classList.add("hidden"); });
+
+  updateTabs();
+  load();
+})();
+</script>
+</body>
+</html>
